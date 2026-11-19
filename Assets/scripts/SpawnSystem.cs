@@ -38,8 +38,8 @@ public class SpawnSystem : MonoBehaviour
         int postawiono = 0;
         for (int i = 0; i < liczbaBronii; i++)
         {
-            Vector3 pozycja = LosowaPozycjaNaTerenie();
-            if (pozycja == Vector3.negativeInfinity) continue;
+            Vector3 pozycja;
+            if (!LosowaPozycjaNaTerenie(out pozycja)) continue;
 
             GameObject bronObj;
             if (prefabyBronii != null && prefabyBronii.Length > 0)
@@ -94,8 +94,8 @@ public class SpawnSystem : MonoBehaviour
         int postawiono = 0;
         for (int i = 0; i < liczbaWrogow; i++)
         {
-            Vector3 pozycja = LosowaPozycjaNaTerenie();
-            if (pozycja == Vector3.negativeInfinity) continue;
+            Vector3 pozycja;
+            if (!LosowaPozycjaNaTerenie(out pozycja)) continue;
 
             GameObject wrogObj;
             if (prefabWroga != null)
@@ -133,8 +133,9 @@ public class SpawnSystem : MonoBehaviour
         return wrog;
     }
 
-    Vector3 LosowaPozycjaNaTerenie()
+    bool LosowaPozycjaNaTerenie(out Vector3 wynik)
     {
+        wynik = Vector3.zero;
         int proby = 0;
         int maxProb = 100;
 
@@ -157,10 +158,11 @@ public class SpawnSystem : MonoBehaviour
 
             if (gracz != null && Vector3.Distance(pozycja, gracz.position) < minimalnaOdleglOdGracza) continue;
 
-            return pozycja;
+            wynik = pozycja;
+            return true;
         }
 
         Debug.LogWarning($"SpawnSystem: nie udalo sie znalezc pozycji po {maxProb} probach.");
-        return Vector3.negativeInfinity;
+        return false;
     }
 }
