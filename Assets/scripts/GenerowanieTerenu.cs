@@ -223,10 +223,18 @@ public class GenerowanieTerenu : MonoBehaviour
             int xi = Mathf.RoundToInt(x);
             int zi = Mathf.RoundToInt(z);
             BiomTyp biom = PobierzBiomSwiatowe(xi, zi);
-            float mnoznik = PobierzMnoznikWysokosciBiomu(biom);
-            wys *= mnoznik;
 
-            if (wys < poziomWody) wys = poziomWody;
+            if (biom == BiomTyp.Woda)
+            {
+                wys = poziomWody;
+            }
+            else
+            {
+                float mnoznik = PobierzMnoznikWysokosciBiomu(biom);
+                wys *= mnoznik;
+
+                if (wys < poziomWody) wys = poziomWody;
+            }
         }
 
         return wys;
@@ -457,10 +465,18 @@ public class ChunkDane : MonoBehaviour
         if (wlaczoneBiomy)
         {
             BiomTyp biom = PobierzBiom(xSwiat, zSwiat);
-            float biomMnoznik = PobierzMnoznikWysokosciBiomu(biom);
-            wys *= biomMnoznik;
 
-            if (wys < poziomWody) wys = poziomWody;
+            if (biom == BiomTyp.Woda)
+            {
+                wys = poziomWody;
+            }
+            else
+            {
+                float biomMnoznik = PobierzMnoznikWysokosciBiomu(biom);
+                wys *= biomMnoznik;
+
+                if (wys < poziomWody) wys = poziomWody;
+            }
         }
 
         return wys;
