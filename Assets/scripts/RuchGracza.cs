@@ -4,9 +4,10 @@ using UnityEngine.InputSystem;
 public class RuchGracza : MonoBehaviour
 {
     public float predkosc = 5f;
-    public float predkoscObrotu = 10f;
+    public float predkoscObrotu = 100f;
     private Rigidbody rb;
     private Vector3 kierunekRuchu;
+    private float obrotGracza;
 
     void Start()
     {
@@ -21,10 +22,13 @@ public class RuchGracza : MonoBehaviour
 
         if (Keyboard.current != null)
         {
-            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) ruchX -= 1f;
-            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) ruchX += 1f;
-            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) ruchZ += 1f;
-            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) ruchZ -= 1f;
+            if (Keyboard.current.aKey.isPressed) ruchX -= 1f;
+            if (Keyboard.current.dKey.isPressed) ruchX += 1f;
+            if (Keyboard.current.wKey.isPressed) ruchZ += 1f;
+            if (Keyboard.current.sKey.isPressed) ruchZ -= 1f;
+
+            if (Keyboard.current.leftArrowKey.isPressed) obrotGracza -= predkoscObrotu * Time.deltaTime;
+            if (Keyboard.current.rightArrowKey.isPressed) obrotGracza += predkoscObrotu * Time.deltaTime;
         }
 
         kierunekRuchu = new Vector3(ruchX, 0f, ruchZ).normalized;
@@ -36,9 +40,8 @@ public class RuchGracza : MonoBehaviour
         {
             Vector3 nowaPozycja = rb.position + kierunekRuchu * predkosc * Time.fixedDeltaTime;
             rb.MovePosition(nowaPozycja);
-
-            Quaternion celowaRotacja = Quaternion.LookRotation(kierunekRuchu);
-            rb.MoveRotation(Quaternion.Slerp(rb.rotation, celowaRotacja, predkoscObrotu * Time.fixedDeltaTime));
         }
+
+        rb.MoveRotation(Quaternion.Euler(0f, obrotGracza, 0f));
     }
 }
