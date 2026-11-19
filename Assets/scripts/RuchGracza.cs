@@ -4,12 +4,14 @@ using UnityEngine.InputSystem;
 public class RuchGracza : MonoBehaviour
 {
     public float predkosc = 5f;
+    public float predkoscObrotu = 10f;
     private Rigidbody rb;
     private Vector3 kierunekRuchu;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        rb.freezeRotation = true;
     }
 
     void Update()
@@ -30,7 +32,13 @@ public class RuchGracza : MonoBehaviour
 
     void FixedUpdate()
     {
-        Vector3 nowaPozycja = rb.position + kierunekRuchu * predkosc * Time.fixedDeltaTime;
-        rb.MovePosition(nowaPozycja);
+        if (kierunekRuchu.sqrMagnitude > 0.001f)
+        {
+            Vector3 nowaPozycja = rb.position + kierunekRuchu * predkosc * Time.fixedDeltaTime;
+            rb.MovePosition(nowaPozycja);
+
+            Quaternion celowaRotacja = Quaternion.LookRotation(kierunekRuchu);
+            rb.MoveRotation(Quaternion.Slerp(rb.rotation, celowaRotacja, predkoscObrotu * Time.fixedDeltaTime));
+        }
     }
 }
