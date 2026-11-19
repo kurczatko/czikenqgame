@@ -9,11 +9,12 @@ public class GenerowanieTerenu : MonoBehaviour
     public int rozmiarChunka = 64;
     public int szerokoscWChunktach = 5;
     public int dlugoscWChunktach = 5;
-    public float skala = 0.02f;
-    public float wysokosc = 30f;
+    public float skala = 0.05f;
+    public float wysokosc = 5f;
+    public float wysokoscBazowa = 0f;
 
     [Header("Szum Perlin")]
-    public int oktawy = 4;
+    public int oktawy = 3;
     public float lacznosc = 0.5f;
     public float zesilenie = 2f;
     public int nasiono = 12345;
@@ -195,7 +196,7 @@ public class GenerowanieTerenu : MonoBehaviour
             czestotliwosc *= zesilenie;
         }
 
-        return wynik * wysokosc;
+        return Mathf.Max(0f, wynik) * wysokosc + wysokoscBazowa;
     }
 }
 
@@ -205,7 +206,8 @@ public class ChunkDane : MonoBehaviour
     public Vector2Int koordynat;
     public int rozmiarChunka = 64;
     public float skala = 0.02f;
-    public float wysokosc = 30f;
+    public float wysokosc = 8f;
+    public float wysokoscBazowa = 0f;
     public int oktawy = 4;
     public float lacznosc = 0.5f;
     public float zesilenie = 2f;
@@ -299,7 +301,7 @@ public class ChunkDane : MonoBehaviour
             czestotliwosc *= zesilenie;
         }
 
-        return wynik * wysokosc;
+        return Mathf.Max(0f, wynik) * wysokosc + wysokoscBazowa;
     }
 
     void ZbudujMesh()
