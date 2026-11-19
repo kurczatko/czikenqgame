@@ -14,10 +14,10 @@ public class SpawnSystem : MonoBehaviour
     [Header("Obszar spawnowania")]
     public float obszarX = 200f;
     public float obszarZ = 200f;
-    public float minimalnaWysokoscDlaSpawnu = 2f;
+    public float minimalnaWysokoscDlaSpawnu = 0f;
 
     [Header("Odstep od gracza")]
-    public float minimalnaOdleglOdGracza = 15f;
+    public float minimalnaOdleglOdGracza = 10f;
 
     private GenerowanieTerenu teren;
     private Transform gracz;
@@ -28,14 +28,21 @@ public class SpawnSystem : MonoBehaviour
         GameObject g = GameObject.FindWithTag("Player");
         if (g != null) gracz = g.transform;
 
+        Debug.Log($"SpawnSystem: teren={(teren != null ? "znaleziony" : "BRAK")}, gracz={(gracz != null ? "znaleziony" : "BRAK")}");
+
         SpawnujBronie();
         SpawnujWrogow();
     }
 
     void SpawnujBronie()
     {
-        if (prefabyBronii == null || prefabyBronii.Length == 0) return;
+        if (prefabyBronii == null || prefabyBronii.Length == 0)
+        {
+            Debug.LogWarning("SpawnSystem: nie przypisano prefabow bronii!");
+            return;
+        }
 
+        int postawiono = 0;
         for (int i = 0; i < liczbaBronii; i++)
         {
             Vector3 pozycja = LosowaPozycjaNaTerenie();
@@ -55,26 +62,38 @@ public class SpawnSystem : MonoBehaviour
 
             BronPickup pickup = bronObj.GetComponent<BronPickup>();
             if (pickup == null) pickup = bronObj.AddComponent<BronPickup>();
+
+            postawiono++;
         }
+
+        Debug.Log($"SpawnSystem: postawiono {postawiono}/{liczbaBronii} bronii.");
     }
 
     void SpawnujWrogow()
     {
-        if (prefabWroga == null) return;
+        if (prefabWroga == null)
+        {
+            Debug.LogWarning("SpawnSystem: nie przypisano prefabu wroga!");
+            return;
+        }
 
+        int postawiono = 0;
         for (int i = 0; i < liczbaWrogow; i++)
         {
             Vector3 pozycja = LosowaPozycjaNaTerenie();
             if (pozycja == Vector3.negativeInfinity) continue;
 
             Instantiate(prefabWroga, pozycja, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f));
+            postawiono++;
         }
+
+        Debug.Log($"SpawnSystem: postawiono {postawiono}/{liczbaWrogow} wrogow.");
     }
 
     Vector3 LosowaPozycjaNaTerenie()
     {
         int proby = 0;
-        int maxProb = 50;
+        int maxProb = 100;
 
         while (proby < maxProb)
         {
@@ -98,6 +117,7 @@ public class SpawnSystem : MonoBehaviour
             return pozycja;
         }
 
+        Debug.LogWarning($"SpawnSystem: nie udalo sie znalezc pozycji po {maxProb} probach.");
         return Vector3.negativeInfinity;
     }
 }
