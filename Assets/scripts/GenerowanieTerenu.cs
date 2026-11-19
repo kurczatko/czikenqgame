@@ -30,6 +30,21 @@ public class GenerowanieTerenu : MonoBehaviour
     [Header("Materiał")]
     public Material materialTerenu;
 
+    [Header("Biomy")]
+    public bool wlaczoneBiomy = true;
+    public float skalaBiomu = 0.003f;
+    public float poziomWody = -2f;
+    public Color kolorWody = new Color(0.1f, 0.4f, 0.7f, 0.6f);
+    public Material materialWody;
+    public GameObject prefabWody;
+
+    [Header("Biomy - typy")]
+    public Color biomTrawaKolor = new Color(0.2f, 0.6f, 0.2f);
+    public Color biomPustyniaKolor = new Color(0.8f, 0.7f, 0.3f);
+    public Color biomLasKolor = new Color(0.1f, 0.4f, 0.1f);
+    public Color biomGoryKolor = new Color(0.5f, 0.5f, 0.5f);
+    public Color biomSniegKolor = new Color(0.9f, 0.9f, 0.9f);
+
     [Header("Drzewa")]
     public GameObject prefabDrzewa;
     public int liczbaDrzewNaChunk = 40;
@@ -175,7 +190,7 @@ public class GenerowanieTerenu : MonoBehaviour
         Vector2Int koordynat = PozycjaNaChunk(pozycjaSwiata);
         if (!aktywneChunki.TryGetValue(koordynat, out ChunkDane dane))
         {
-            return ObliczWysokoscSwiatowa(pozycjaSwiata.x, pozycjaSwiata.z);
+            return ObliczWysokoscSwiatowaZBiomem(pozycjaSwiata.x, pozycjaSwiata.z);
         }
         return dane.PobierzWysokosc(pozycjaSwiata.x, pozycjaSwiata.z);
     }
@@ -198,6 +213,57 @@ public class GenerowanieTerenu : MonoBehaviour
 
         return Mathf.Max(0f, wynik) * wysokosc + wysokoscBazowa;
     }
+
+    float ObliczWysokoscSwiatowaZBiomem(float x, float z)
+    {
+        float wys = ObliczWysokoscSwiatowa(x, z);
+
+        if (wlaczoneBiomy)
+        {
+            int xi = Mathf.RoundToInt(x);
+            int zi = Mathf.RoundToInt(z);
+            BiomTyp biom = PobierzBiomSwiatowe(xi, zi);
+            float mnoznik = PobierzMnoznikWysokosciBiomu(biom);
+            wys *= mnoznik;
+
+            if (wys < poziomWody) wys = poziomWody;
+        }
+
+        return wys;
+    }
+
+    BiomTyp PobierzBiomSwiatowe(int xSwiat, int zSwiat)
+    {
+        float szum = Mathf.PerlinNoise(xSwiat * skalaBiomu, zSwiat * skalaBiomu);
+
+        if (szum < 0.15f) return BiomTyp.Woda;
+        if (szum < 0.35f) return BiomTyp.Pustynia;
+        if (szum < 0.60f) return BiomTyp.Trawa;
+        if (szum < 0.80f) return BiomTyp.Las;
+        return BiomTyp.Gory;
+    }
+
+    float PobierzMnoznikWysokosciBiomu(BiomTyp biom)
+    {
+        switch (biom)
+        {
+            case BiomTyp.Woda: return 0f;
+            case BiomTyp.Pustynia: return 0.4f;
+            case BiomTyp.Trawa: return 1f;
+            case BiomTyp.Las: return 0.8f;
+            case BiomTyp.Gory: return 2.5f;
+            default: return 1f;
+        }
+    }
+}
+
+public enum BiomTyp
+{
+    Woda,
+    Pustynia,
+    Trawa,
+    Las,
+    Gory
 }
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
@@ -227,6 +293,18 @@ public class ChunkDane : MonoBehaviour
     public float skalaDrzewaMax = 1.4f;
     public bool tworzDrzewaFallback = true;
     public int nasiono = 12345;
+
+    [Header("Biomy")]
+    public bool wlaczoneBiomy = true;
+    public float skalaBiomu = 0.003f;
+    public float poziomWody = -2f;
+    public Color kolorWody = new Color(0.1f, 0.4f, 0.7f, 0.6f);
+    public Material materialWody;
+    public Color biomTrawaKolor = new Color(0.2f, 0.6f, 0.2f);
+    public Color biomPustyniaKolor = new Color(0.8f, 0.7f, 0.3f);
+    public Color biomLasKolor = new Color(0.1f, 0.4f, 0.1f);
+    public Color biomGoryKolor = new Color(0.5f, 0.5f, 0.5f);
+    public Color biomSniegKolor = new Color(0.9f, 0.9f, 0.9f);
 
     public Vector3 srodekSwiata;
 
@@ -258,6 +336,79 @@ public class ChunkDane : MonoBehaviour
         ZbudujMesh();
         PrzypiszMaterial();
         UmiescDrzewa();
+        StworzWode();
+    }
+
+    void StworzWode()
+    {
+        if (!wlaczoneBiomy) return;
+
+        bool czyJestWoda = false;
+        for (int z = 0; z <= rozmiarChunka; z++)
+        {
+            for (int x = 0; x <= rozmiarChunka; x++)
+            {
+                if (mapaWysokosci[x, z] <= poziomWody + 0.1f)
+                {
+                    czyJestWoda = true;
+                    break;
+                }
+            }
+            if (czyJestWoda) break;
+        }
+
+        if (!czyJestWoda) return;
+
+        GameObject wodaObj = new GameObject("Woda");
+        wodaObj.transform.SetParent(transform);
+        wodaObj.transform.position = Vector3.zero;
+
+        MeshFilter mf = wodaObj.AddComponent<MeshFilter>();
+        MeshRenderer mr = wodaObj.AddComponent<MeshRenderer>();
+
+        Mesh wodaMesh = new Mesh();
+        int res = rozmiarChunka;
+        Vector3[] wVertices = new Vector3[(res + 1) * (res + 1)];
+        int[] wTris = new int[res * res * 6];
+
+        int vi = 0;
+        for (int z = 0; z <= res; z++)
+        {
+            for (int x = 0; x <= res; x++)
+            {
+                wVertices[vi] = new Vector3(x, poziomWody, z);
+                vi++;
+            }
+        }
+
+        int ti = 0;
+        for (int z = 0; z < res; z++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                int a = x + z * (res + 1);
+                int b = a + 1;
+                int c = a + (res + 1);
+                int d = c + 1;
+
+                wTris[ti++] = a; wTris[ti++] = c; wTris[ti++] = d;
+                wTris[ti++] = a; wTris[ti++] = d; wTris[ti++] = b;
+            }
+        }
+
+        wodaMesh.vertices = wVertices;
+        wodaMesh.triangles = wTris;
+        wodaMesh.RecalculateNormals();
+
+        mf.mesh = wodaMesh;
+
+        Material matWody = materialWody;
+        if (matWody == null)
+        {
+            matWody = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            matWody.color = kolorWody;
+        }
+        mr.sharedMaterial = matWody;
     }
 
     void InicjalizujTablice()
@@ -301,7 +452,42 @@ public class ChunkDane : MonoBehaviour
             czestotliwosc *= zesilenie;
         }
 
-        return Mathf.Max(0f, wynik) * wysokosc + wysokoscBazowa;
+        float wys = Mathf.Max(0f, wynik) * wysokosc + wysokoscBazowa;
+
+        if (wlaczoneBiomy)
+        {
+            BiomTyp biom = PobierzBiom(xSwiat, zSwiat);
+            float biomMnoznik = PobierzMnoznikWysokosciBiomu(biom);
+            wys *= biomMnoznik;
+
+            if (wys < poziomWody) wys = poziomWody;
+        }
+
+        return wys;
+    }
+
+    BiomTyp PobierzBiom(int xSwiat, int zSwiat)
+    {
+        float szum = Mathf.PerlinNoise(xSwiat * skalaBiomu, zSwiat * skalaBiomu);
+
+        if (szum < 0.15f) return BiomTyp.Woda;
+        if (szum < 0.35f) return BiomTyp.Pustynia;
+        if (szum < 0.60f) return BiomTyp.Trawa;
+        if (szum < 0.80f) return BiomTyp.Las;
+        return BiomTyp.Gory;
+    }
+
+    float PobierzMnoznikWysokosciBiomu(BiomTyp biom)
+    {
+        switch (biom)
+        {
+            case BiomTyp.Woda: return 0f;
+            case BiomTyp.Pustynia: return 0.4f;
+            case BiomTyp.Trawa: return 1f;
+            case BiomTyp.Las: return 0.8f;
+            case BiomTyp.Gory: return 2.5f;
+            default: return 1f;
+        }
     }
 
     void ZbudujMesh()
@@ -317,7 +503,7 @@ public class ChunkDane : MonoBehaviour
                 float wys = mapaWysokosci[x, z];
                 wierzcholki[indeksWierzcholka] = new Vector3(xStart + x, wys, zStart + z);
                 uv[indeksWierzcholka] = new Vector2((float)x / rozmiarChunka, (float)z / rozmiarChunka);
-                kolory[indeksWierzcholka] = KolorDlaWysokosci(wys);
+                kolory[indeksWierzcholka] = KolorDlaWysokosci(wys, xStart + x, zStart + z);
                 indeksWierzcholka++;
             }
         }
@@ -355,11 +541,25 @@ public class ChunkDane : MonoBehaviour
         kolizjer.sharedMesh = mesh;
     }
 
-    Color KolorDlaWysokosci(float wys)
+    Color KolorDlaWysokosci(float wys, int xSwiat, int zSwiat)
     {
-        if (wys > wysokoscKamien) return kolorSnieg;
-        if (wys > wysokoscTrawa) return Color.Lerp(kolorTrawa, kolorKamien, (wys - wysokoscTrawa) / (wysokoscKamien - wysokoscTrawa));
-        return kolorTrawa;
+        if (wys <= poziomWody + 0.1f) return kolorWody;
+
+        BiomTyp biom = PobierzBiom(xSwiat, zSwiat);
+
+        switch (biom)
+        {
+            case BiomTyp.Pustynia: return biomPustyniaKolor;
+            case BiomTyp.Las: return biomLasKolor;
+            case BiomTyp.Gory:
+                if (wys > wysokoscKamien) return biomSniegKolor;
+                return biomGoryKolor;
+            case BiomTyp.Trawa:
+            default:
+                if (wys > wysokoscKamien) return kolorSnieg;
+                if (wys > wysokoscTrawa) return Color.Lerp(biomTrawaKolor, kolorKamien, (wys - wysokoscTrawa) / (wysokoscKamien - wysokoscTrawa));
+                return biomTrawaKolor;
+        }
     }
 
     void PrzypiszMaterial()
