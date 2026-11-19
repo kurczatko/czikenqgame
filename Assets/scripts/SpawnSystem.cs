@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public class SpawnSystem : MonoBehaviour
 {
@@ -28,7 +27,7 @@ public class SpawnSystem : MonoBehaviour
         GameObject g = GameObject.FindWithTag("Player");
         if (g != null) gracz = g.transform;
 
-        Debug.Log($"SpawnSystem: teren={(teren != null ? "znaleziony" : "BRAK")}, gracz={(gracz != null ? "znaleziony" : "BRAK")}");
+        Debug.Log($"SpawnSystem: teren={(teren != null ? "OK" : "BRAK")}, gracz={(gracz != null ? "OK" : "BRAK")}");
 
         SpawnujBronie();
         SpawnujWrogow();
@@ -36,22 +35,27 @@ public class SpawnSystem : MonoBehaviour
 
     void SpawnujBronie()
     {
-        if (prefabyBronii == null || prefabyBronii.Length == 0)
-        {
-            Debug.LogWarning("SpawnSystem: nie przypisano prefabow bronii!");
-            return;
-        }
-
         int postawiono = 0;
         for (int i = 0; i < liczbaBronii; i++)
         {
             Vector3 pozycja = LosowaPozycjaNaTerenie();
             if (pozycja == Vector3.negativeInfinity) continue;
 
-            int indeks = Random.Range(0, prefabyBronii.Length);
-            GameObject bronObj = Instantiate(prefabyBronii[indeks], pozycja, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f));
+            GameObject bronObj;
+            if (prefabyBronii != null && prefabyBronii.Length > 0)
+            {
+                int indeks = Random.Range(0, prefabyBronii.Length);
+                bronObj = Instantiate(prefabyBronii[indeks], pozycja, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f));
+            }
+            else
+            {
+                bronObj = StworzBronDomyślna(pozycja);
+            }
+
             Bron bron = bronObj.GetComponent<Bron>();
             if (bron == null) bron = bronObj.AddComponent<Bron>();
+            if (string.IsNullOrEmpty(bron.statystyki.nazwa)) bron.statystyki.nazwa = "Bron " + (i + 1);
+            if (bron.statystyki.obrazenia <= 0) bron.statystyki.obrazenia = 10;
 
             Collider col = bronObj.GetComponent<Collider>();
             if (col == null)
@@ -69,25 +73,64 @@ public class SpawnSystem : MonoBehaviour
         Debug.Log($"SpawnSystem: postawiono {postawiono}/{liczbaBronii} bronii.");
     }
 
+    GameObject StworzBronDomyślna(Vector3 pozycja)
+    {
+        GameObject bron = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        bron.transform.position = pozycja;
+        bron.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+        bron.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+
+        Renderer rend = bron.GetComponent<Renderer>();
+        if (rend != null) rend.material.color = Color.yellow;
+
+        Collider col = bron.GetComponent<Collider>();
+        if (col != null) col.isTrigger = true;
+
+        return bron;
+    }
+
     void SpawnujWrogow()
     {
-        if (prefabWroga == null)
-        {
-            Debug.LogWarning("SpawnSystem: nie przypisano prefabu wroga!");
-            return;
-        }
-
         int postawiono = 0;
         for (int i = 0; i < liczbaWrogow; i++)
         {
             Vector3 pozycja = LosowaPozycjaNaTerenie();
             if (pozycja == Vector3.negativeInfinity) continue;
 
-            Instantiate(prefabWroga, pozycja, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f));
+            GameObject wrogObj;
+            if (prefabWroga != null)
+            {
+                wrogObj = Instantiate(prefabWroga, pozycja, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f));
+            }
+            else
+            {
+                wrogObj = StworzWrogęDomyślnego(pozycja);
+            }
+
+            Wrog wrog = wrogObj.GetComponent<Wrog>();
+            if (wrog == null) wrog = wrogObj.AddComponent<Wrog>();
+            if (wrog.maksymalneHp <= 0) wrog.maksymalneHp = 100;
+            wrog.aktualneHp = wrog.maksymalneHp;
+
             postawiono++;
         }
 
         Debug.Log($"SpawnSystem: postawiono {postawiono}/{liczbaWrogow} wrogow.");
+    }
+
+    GameObject StworzWrogęDomyślnego(Vector3 pozycja)
+    {
+        GameObject wrog = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        wrog.transform.position = pozycja + Vector3.up * 1f;
+        wrog.transform.localScale = new Vector3(1f, 1f, 1f);
+
+        Renderer rend = wrog.GetComponent<Renderer>();
+        if (rend != null) rend.material.color = Color.red;
+
+        Collider col = wrog.GetComponent<Collider>();
+        if (col != null) col.isTrigger = false;
+
+        return wrog;
     }
 
     Vector3 LosowaPozycjaNaTerenie()
