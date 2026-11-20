@@ -76,6 +76,8 @@ public class GenerowanieTerenu : MonoBehaviour
             gracz = Camera.main?.transform;
         }
 
+        nasiono = Random.Range(int.MinValue, int.MaxValue);
+
         InicjalizujNasiono();
         GenerujChunkiWokolGracza();
     }
@@ -244,10 +246,10 @@ public class GenerowanieTerenu : MonoBehaviour
     {
         float szum = Mathf.PerlinNoise(xSwiat * skalaBiomu, zSwiat * skalaBiomu);
 
-        if (szum < 0.15f) return BiomTyp.Woda;
-        if (szum < 0.35f) return BiomTyp.Pustynia;
-        if (szum < 0.60f) return BiomTyp.Trawa;
-        if (szum < 0.80f) return BiomTyp.Las;
+        if (szum < 0.10f) return BiomTyp.Woda;
+        if (szum < 0.40f) return BiomTyp.Pustynia;
+        if (szum < 0.65f) return BiomTyp.Trawa;
+        if (szum < 0.85f) return BiomTyp.Las;
         return BiomTyp.Gory;
     }
 
@@ -302,6 +304,15 @@ public class ChunkDane : MonoBehaviour
     public bool tworzDrzewaFallback = true;
     public int nasiono = 12345;
 
+    [Header("Kaktusy (pustynie)")]
+    public GameObject prefabKaktusa;
+    public int liczbaKaktusowNaPustynie = 15;
+    public float odlegloscMiedzyKaktusami = 5f;
+    public float skalaKaktusaMin = 0.7f;
+    public float skalaKaktusaMax = 1.3f;
+    public int obrazeniaKaktusa = 10;
+    public float cooldownObrazenKaktusa = 1f;
+
     [Header("Biomy")]
     public bool wlaczoneBiomy = true;
     public float skalaBiomu = 0.003f;
@@ -345,6 +356,7 @@ public class ChunkDane : MonoBehaviour
         PrzypiszMaterial();
         UmiescDrzewa();
         StworzWode();
+        UmiescKaktusy();
     }
 
     void StworzWode()
@@ -486,10 +498,10 @@ public class ChunkDane : MonoBehaviour
     {
         float szum = Mathf.PerlinNoise(xSwiat * skalaBiomu, zSwiat * skalaBiomu);
 
-        if (szum < 0.15f) return BiomTyp.Woda;
-        if (szum < 0.35f) return BiomTyp.Pustynia;
-        if (szum < 0.60f) return BiomTyp.Trawa;
-        if (szum < 0.80f) return BiomTyp.Las;
+        if (szum < 0.10f) return BiomTyp.Woda;
+        if (szum < 0.40f) return BiomTyp.Pustynia;
+        if (szum < 0.65f) return BiomTyp.Trawa;
+        if (szum < 0.85f) return BiomTyp.Las;
         return BiomTyp.Gory;
     }
 
@@ -658,6 +670,115 @@ public class ChunkDane : MonoBehaviour
             d.pozycjaStartowa = pozycja;
             d.wysokoscTerenu = wys;
         }
+    }
+
+    void UmiescKaktusy()
+    {
+        if (!wlaczoneBiomy) return;
+
+        GameObject kontener = new GameObject("Kaktusy");
+        kontener.transform.SetParent(transform);
+
+        int xStart = koordynat.x * rozmiarChunka;
+        int zStart = koordynat.y * rozmiarChunka;
+
+        Random.InitState(nasiono + 777);
+
+        int postawiono = 0;
+        int proby = 0;
+        int maxProb = liczbaKaktusowNaPustynie * 30;
+        List<Vector3> pozycje = new List<Vector3>();
+
+        while (postawiono < liczbaKaktusowNaPustynie && proby < maxProb)
+        {
+            proby++;
+
+            int x = Random.Range(2, rozmiarChunka - 2);
+            int z = Random.Range(2, rozmiarChunka - 2);
+
+            int xSwiat = xStart + x;
+            int zSwiat = zStart + z;
+
+            BiomTyp biom = PobierzBiom(xSwiat, zSwiat);
+            if (biom != BiomTyp.Pustynia) continue;
+
+            float wys = mapaWysokosci[x, z];
+            if (wys < 1f) continue;
+
+            Vector3 normal = ObliczNormal(x, z);
+            float nachylenie = Vector3.Angle(Vector3.up, normal);
+            if (nachylenie > 40f) continue;
+
+            Vector3 pozycja = new Vector3(
+                xSwiat + Random.Range(-0.3f, 0.3f),
+                wys + 0.5f,
+                zSwiat + Random.Range(-0.3f, 0.3f)
+            );
+
+            if (JestZblizona(pozycje, pozycja)) continue;
+
+            pozycje.Add(pozycja);
+            postawiono++;
+
+            GameObject kaktus;
+            if (prefabKaktusa != null)
+            {
+                kaktus = Instantiate(prefabKaktusa, pozycja, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f), kontener.transform);
+                float skalaLosowa = Random.Range(skalaKaktusaMin, skalaKaktusaMax);
+                kaktus.transform.localScale = Vector3.one * skalaLosowa;
+            }
+            else
+            {
+                kaktus = StworzKaktusFallback(pozycja, kontener.transform);
+            }
+
+            Kaktus k = kaktus.GetComponent<Kaktus>();
+            if (k == null) k = kaktus.AddComponent<Kaktus>();
+            k.obrazenia = obrazeniaKaktusa;
+            k.cooldown = cooldownObrazenKaktusa;
+        }
+
+        Debug.Log($"ChunkDane: postawiono {postawiono}/{liczbaKaktusowNaPustynie} kaktusow na pustyni.");
+    }
+
+    GameObject StworzKaktusFallback(Vector3 pozycja, Transform rodzic)
+    {
+        GameObject kaktus = new GameObject("Kaktus");
+        kaktus.transform.SetParent(rodzic);
+        kaktus.transform.position = pozycja;
+
+        GameObject tułów = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        tułów.transform.SetParent(kaktus.transform, false);
+        tułów.transform.localPosition = Vector3.zero;
+        tułów.transform.localScale = new Vector3(0.3f, 1.2f, 0.3f);
+        tułów.GetComponent<Collider>().enabled = false;
+
+        GameObject ramięL = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        ramięL.transform.SetParent(kaktus.transform, false);
+        ramięL.transform.localPosition = new Vector3(-0.35f, 0.6f, 0f);
+        ramięL.transform.localRotation = Quaternion.Euler(0f, 0f, 20f);
+        ramięL.transform.localScale = new Vector3(0.2f, 0.7f, 0.2f);
+        ramięL.GetComponent<Collider>().enabled = false;
+
+        GameObject ramięP = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        ramięP.transform.SetParent(kaktus.transform, false);
+        ramięP.transform.localPosition = new Vector3(0.35f, 0.6f, 0f);
+        ramięP.transform.localRotation = Quaternion.Euler(0f, 0f, -20f);
+        ramięP.transform.localScale = new Vector3(0.2f, 0.7f, 0.2f);
+        ramięP.GetComponent<Collider>().enabled = false;
+
+        Material mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.2f, 0.6f, 0.1f) };
+        foreach (var obj in new GameObject[] { tułów, ramięL, ramięP })
+        {
+            var r = obj.GetComponent<Renderer>();
+            if (r != null) r.sharedMaterial = mat;
+        }
+
+        BoxCollider col = kaktus.AddComponent<BoxCollider>();
+        col.isTrigger = true;
+        col.size = new Vector3(0.6f, 1.2f, 0.6f);
+
+        return kaktus;
     }
 
     GameObject StworzDrzewoFallback(Vector3 pozycja, Transform rodzic)

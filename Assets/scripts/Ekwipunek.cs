@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
@@ -22,6 +23,14 @@ public class Ekwipunek : MonoBehaviour
             return;
         }
         Instancja = this;
+    }
+
+    void Update()
+    {
+        if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            PokazUkryjEkwipunek();
+        }
     }
 
     public void DodajBron(Bron bron)
